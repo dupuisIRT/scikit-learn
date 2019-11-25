@@ -167,7 +167,9 @@ def _estimate_gaussian_covariances_full(resp, X, sample_weight, nk, means,
     for k in range(n_components):
         diff = X - means[k]
         weighted_resp = resp * sample_weight[:, np.newaxis]
+        #denominateur = np.sum(resp, axis=0)
         covariances[k] = np.dot(weighted_resp[:, k] * diff.T, diff) / nk[k]
+        #covariances[k] = np.dot(weighted_resp[:, k] * diff.T, diff) / denominateur[k]
         covariances[k].flat[::n_features + 1] += reg_covar
     return covariances
 
@@ -198,7 +200,9 @@ def _estimate_gaussian_covariances_tied(resp, X, sample_weight, nk, means,
     avg_X2 = np.dot(X.T, X * sample_weight[:, np.newaxis])
     avg_means2 = np.dot(nk * means.T, means)
     covariance = avg_X2 - avg_means2
-    covariance /= nk.sum()
+    nk_2 = ((resp * sample_weight[:, np.newaxis]).sum(axis=0)
+          + 10 * np.finfo(resp.dtype).eps)
+    covariance /= nk_2.sum()
     covariance.flat[::len(covariance) + 1] += reg_covar
     return covariance
 
@@ -227,9 +231,11 @@ def _estimate_gaussian_covariances_diag(resp, X, sample_weight, nk, means,
         The covariance vector of the current components.
     """
     weighted_resp = resp * sample_weight[:, np.newaxis]
-    avg_X2 = np.dot(weighted_resp.T, X * X) / nk[:, np.newaxis]
+    nk_2 = ((resp * sample_weight[:, np.newaxis]).sum(axis=0)
+          + 10 * np.finfo(resp.dtype).eps)
+    avg_X2 = np.dot(weighted_resp.T, X * X) / nk_2[:, np.newaxis]
     avg_means2 = means ** 2
-    avg_X_means = means * np.dot(weighted_resp.T, X) / nk[:, np.newaxis]
+    avg_X_means = means * np.dot(weighted_resp.T, X) / nk_2[:, np.newaxis]
     return avg_X2 - 2 * avg_X_means + avg_means2 + reg_covar
 
 
@@ -293,10 +299,12 @@ def _estimate_gaussian_parameters(X, sample_weight, resp, reg_covar,
         The covariance matrix of the current components.
         The shape depends of the covariance_type.
     """
-    nk = ((resp * sample_weight[:, np.newaxis]).sum(axis=0)
+    nk_mean = ((resp * sample_weight[:, np.newaxis]).sum(axis=0)
+          + 10 * np.finfo(resp.dtype).eps)
+    nk = (resp.sum(axis=0)
           + 10 * np.finfo(resp.dtype).eps)
     means = (np.dot(resp.T, X * sample_weight[:, np.newaxis])
-             / nk[:, np.newaxis])
+             / nk_mean[:, np.newaxis])
     covariances = {"full": _estimate_gaussian_covariances_full,
                    "tied": _estimate_gaussian_covariances_tied,
                    "diag": _estimate_gaussian_covariances_diag,
@@ -429,7 +437,8 @@ def _estimate_log_gaussian_prob(X, sample_weight, means, precisions_chol,
     log_det = _compute_log_det_cholesky(
         precisions_chol, covariance_type, n_features)
 
-    log_det_weighted = - 2 * np.log(sample_weight)
+    #log_det_weighted = - 2 * np.log(sample_weight)
+    log_det_weighted = .5 * n_features * np.log(sample_weight)
 
     if covariance_type == 'full':
         log_prob = np.empty((n_samples, n_components))
@@ -454,7 +463,10 @@ def _estimate_log_gaussian_prob(X, sample_weight, means, precisions_chol,
         log_prob = (np.sum(means ** 2, 1) * precisions -
                     2 * np.dot(X, means.T * precisions) +
                     np.outer(row_norms(X, squared=True), precisions))
-    return (-.5 * (n_features * np.log(2 * np.pi) + log_prob)
+    toto = (-.5 * (n_features * np.log(2 * np.pi) + log_prob * sample_weight[:, np.newaxis])
+            + log_det + log_det_weighted[:, np.newaxis])
+
+    return (-.5 * (n_features * np.log(2 * np.pi) + log_prob * sample_weight[:, np.newaxis])
             + log_det + log_det_weighted[:, np.newaxis])
 
 
@@ -666,7 +678,8 @@ class GaussianMixture(BaseMixture):
 
         weights, means, covariances = _estimate_gaussian_parameters(
             X, sample_weight, resp, self.reg_covar, self.covariance_type)
-        weights /= sum_weight
+        #weights /= sum_weight
+        weights /= X.shape[0]
 
         self.weights_ = (weights if self.weights_init is None
                          else self.weights_init)

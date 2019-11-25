@@ -383,7 +383,9 @@ class BaseMixture(DensityMixin, BaseEstimator, metaclass=ABCMeta):
 
         sample_weight = _check_normalize_sample_weight(sample_weight, X)
 
-        return sample_weight * logsumexp(
+        # return sample_weight * logsumexp(
+        #    self._estimate_weighted_log_prob(X, sample_weight), axis=1)
+        return logsumexp(
             self._estimate_weighted_log_prob(X, sample_weight), axis=1)
 
     def score(self, X, y=None, sample_weight=None):

@@ -778,7 +778,7 @@ def test_weighted_vs_repeated():
     n_features = rand_data.n_features
     n_components = rand_data.n_components
 
-    for covar_type in COVARIANCE_TYPE:
+    for covar_type in ['full']:#COVARIANCE_TYPE:
         X = rand_data.X[covar_type]
 
         separation_index = int(np.round(rand_data.weights[0] * n_samples))
