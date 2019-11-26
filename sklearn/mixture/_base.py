@@ -64,6 +64,8 @@ def _check_X(X, n_components=None, n_features=None, ensure_min_samples=1):
 
 def _check_normalize_sample_weight(sample_weight, X):
     """Set sample_weight if None, and check for correct dtype"""
+    if sample_weight is None:
+        sample_weight = np.ones(X.shape[0])
 
     sample_weight_was_none = sample_weight is None
 
@@ -159,12 +161,13 @@ class BaseMixture(DensityMixin, BaseEstimator, metaclass=ABCMeta):
             are assigned equal weight (default: None).
         """
         n_samples, _ = X.shape
+        sample_weight_copy = sample_weight.copy()
 
         if self.init_params == 'kmeans':
             resp = np.zeros((n_samples, self.n_components))
             init_kmeans = cluster.KMeans(n_clusters=self.n_components,
                                          n_init=1, random_state=random_state)
-            label = init_kmeans.fit(X, sample_weight=sample_weight).labels_
+            label = init_kmeans.fit(X, sample_weight=sample_weight_copy).labels_
             resp[np.arange(n_samples), label] = 1
         elif self.init_params == 'random':
             resp = random_state.rand(n_samples, self.n_components)
