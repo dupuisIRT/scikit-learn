@@ -329,6 +329,14 @@ class BayesianGaussianMixture(BaseMixture):
         self.degrees_of_freedom_prior = degrees_of_freedom_prior
         self.covariance_prior = covariance_prior
 
+    '''
+    def fit(self, X, sample_weight=None):
+        if sample_weight is not None:
+            raise NotImplementedError('BayesianGaussianMixture does not take'
+                                      ' into account sample_weight.')
+        super().fit(X, sample_weight)
+    '''
+
     def _check_parameters(self, X):
         """Check that the parameters are well defined.
 
@@ -681,13 +689,12 @@ class BayesianGaussianMixture(BaseMixture):
             return (digamma(self.weight_concentration_) -
                     digamma(np.sum(self.weight_concentration_)))
 
-    def _estimate_log_prob(self, X, sample_weight):
+    def _estimate_log_prob(self, X):
         _, n_features = X.shape
         # We remove `n_features * np.log(self.degrees_of_freedom_)` because
         # the precision matrix is normalized
         log_gauss = (_estimate_log_gaussian_prob(
-            X, sample_weight, self.means_, self.precisions_cholesky_,
-            self.covariance_type) -
+            X, self.means_, self.precisions_cholesky_, self.covariance_type) -
             .5 * n_features * np.log(self.degrees_of_freedom_))
 
         log_lambda = n_features * np.log(2.) + np.sum(digamma(
